@@ -423,7 +423,7 @@ export default function(file, api, options) {
         } else {
           args = [count];
         }
-      } else if (typeof secondArg === "string") {
+      } else {
         args = [p.node.arguments[1]];
       }
 
