@@ -408,76 +408,201 @@ export default function(file, api, options) {
   // assert.exists('.foo, 2, 'custom message') -> assert.dom('.foo').exists({ count: 2 }, 'custom message');
   // assert.exists('.foo', 'custom message') -> assert.dom('.foo').exists('custom message');
   // assert.exists('.foo') -> assert.dom('.foo').exists();
-  root.find(j.CallExpression, assertExists).forEach(p => {
-      let selector = p.node.arguments[0];
-      let secondArg = p.node.arguments[1] ? p.node.arguments[1].value : null;
+  function replaceAssertExists(p){
+    let selector = p.node.arguments[0];
+    let secondArg = p.node.arguments[1] ? p.node.arguments[1].value : null;
 
-      let args;
-      if (secondArg === null) {
-        args = [];
-      } else if (typeof secondArg === "number") {
-        let count = countObject(secondArg);
-        let customMessage = p.node.arguments[2];
-        if (customMessage) {
-          args = [count, customMessage];
-        } else {
-          args = [count];
-        }
+    let args;
+    if (secondArg === null) {
+      args = [];
+    } else if (typeof secondArg === "number") {
+      let count = countObject(secondArg);
+      let customMessage = p.node.arguments[2];
+      if (customMessage) {
+        args = [count, customMessage];
       } else {
-        args = [p.node.arguments[1]];
+        args = [count];
       }
+    } else {
+      args = [p.node.arguments[1]];
+    }
 
-      p.replace(domAssertion([selector], 'exists',
-        args));
-    });
+    p.replace(domAssertion([selector], 'exists',
+      args));
+  }
+  root.find(j.CallExpression, assertExists).forEach(p => {
+    replaceAssertExists(p);
+  });
 
   // assert.contains('.foo', 'stuff') -> assert.dom('.foo).hasText('stuff');
   // assert.contains('.foo', 'stuff', 'custom message') -> assert.dom('.foo').hasText('stuff', 'custom message');
   // assert.contains(selector(), contents()) -> assert.dom(selector()).hasText(contents());
-  root.find(j.CallExpression, assertContains).forEach(p => {
+
+  function replaceAssertContains(p) {
     let selector = p.node.arguments[0];
     let text = p.node.arguments[1];
     let customMessage = p.node.arguments[2];
     p.replace(domAssertion([selector], 'hasText',
       customMessage ? [text, customMessage] : [text]));
+  }
+
+  root.find(j.CallExpression, assertContains).forEach(p => {
+    replaceAssertContains(p);
   });
 
   // assert.containsExactly('.foo', 'stuff') -> assert.dom('.foo).hasText('stuff');
   // assert.containsExactly('.foo', 'stuff', 'custom message') -> assert.dom('.foo').hasText('stuff', 'custom message');
-  root.find(j.CallExpression, assertContainsExactly).forEach(p => {
+  function replaceContainsExactly(p) {
     let selector = p.node.arguments[0];
     let text = p.node.arguments[1];
     let customMessage = p.node.arguments[2];
     p.replace(domAssertion([selector], 'hasText',
       customMessage ? [text, customMessage] : [text]));
+  }
+  root.find(j.CallExpression, assertContainsExactly).forEach(p => {
+    replaceContainsExactly(p);
   });
 
   // assert.notContains('.foo', 'stuff') -> assert.dom('.foo).doesNotIncludeText('stuff');
   // assert.notContains('.foo', 'stuff', 'custom message') -> assert.dom('.foo').doesNotIncludeText('stuff', 'custom message');
-  root.find(j.CallExpression, assertNotContains).forEach(p => {
+  function replaceNotContains(p) {
     let selector = p.node.arguments[0];
     let text = p.node.arguments[1];
     let customMessage = p.node.arguments[2];
     p.replace(domAssertion([selector], 'doesNotIncludeText',
       customMessage ? [text, customMessage] : [text]));
+  }
+  root.find(j.CallExpression, assertNotContains).forEach(p => {
+    replaceNotContains(p);
   });
 
   // assert.notExists('.foo', 'custom message') -> assert.dom('.foo).doesNotExist('custom message');
   // assert.notExists('.foo') -> assert.dom('.foo').doesNotExist();
-  root.find(j.CallExpression, assertNotExists).forEach(p => {
+  function replaceAssertNotExists(p){
     let selector = p.node.arguments[0];
     let customMessage = p.node.arguments[1];
     p.replace(domAssertion([selector], 'doesNotExist',
       customMessage ? [customMessage] : []));
+  }
+  root.find(j.CallExpression, assertNotExists).forEach(p => {
+    replaceAssertNotExists(p);
   });
 
   // assert.disabled('.foo', 'custom message') -> assert.dom('.foo).isDisabled('custom message');
   // assert.disabled('.foo') -> assert.dom('.foo').isDisabled();
-  root.find(j.CallExpression, assertDisabled).forEach(p => {
+  function replaceAssertDisabled(p) {
     let selector = p.node.arguments[0];
     let customMessage = p.node.arguments[1];
     p.replace(domAssertion([selector], 'isDisabled',
       customMessage ? [customMessage] : []));
+  }
+  root.find(j.CallExpression, assertDisabled).forEach(p => {
+    replaceAssertDisabled(p);
+  });
+
+  root.find(j.CallExpression, {
+    callee: {
+      object: { name: "assert" },
+      property: { name: "within" }
+    }
+  }).forEach(path => {
+    const assertExists = {
+      callee: {
+        type: 'MemberExpression',
+        object: { },
+        property: { name: 'exists' },
+      }
+    };
+
+    const assertNotExists = {
+      callee: {
+        type: 'MemberExpression',
+        object: { },
+        property: { name: 'notExists' },
+      }
+    };
+
+    const assertDisabled = {
+      callee: {
+        type: 'MemberExpression',
+        object: { },
+        property: { name: 'disabled' },
+      }
+    };
+
+    const assertContains = {
+      callee: {
+        type: 'MemberExpression',
+        object: { },
+        property: { name: 'contains' },
+      }
+    };
+
+    const assertNotContains = {
+      callee: {
+        type: 'MemberExpression',
+        object: { },
+        property: { name: 'notContains' },
+      }
+    };
+
+    const assertContainsExactly = {
+      callee: {
+        type: 'MemberExpression',
+        object: { },
+        property: { name: 'containsExactly' },
+      }
+    };
+
+    j(path).find(j.CallExpression, assertExists).forEach(p => {
+      replaceAssertExists(p);
+    });
+    j(path).find(j.CallExpression, assertContains).forEach(p => {
+      replaceAssertContains(p);
+    });
+    j(path).find(j.CallExpression, assertContainsExactly).forEach(p => {
+      replaceContainsExactly(p);
+    });
+    j(path).find(j.CallExpression, assertContains).forEach(p => {
+      replaceAssertContains(p);
+    });
+
+    j(path).find(j.CallExpression, assertNotContains).forEach(p => {
+      replaceNotContains(p);
+    });
+
+    j(path).find(j.CallExpression, assertNotExists).forEach(p => {
+      replaceAssertNotExists(p);
+    });
+
+    j(path).find(j.CallExpression, assertDisabled).forEach(p => {
+      replaceAssertDisabled(p);
+    });
+
+
+    j(path).find(j.CallExpression, {
+      callee: {
+        type: 'MemberExpression',
+        object: { name: 'assert' },
+        property: { name: 'dom' },
+      }
+    }).forEach(p => {
+      p.value.arguments.push(j.identifier('context'))
+    });
+
+    let cxt = j.variableDeclaration('let',
+      [j.variableDeclarator(
+        j.identifier('context'),
+        j.callExpression(
+
+          j.identifier('find')
+          ,
+          [path.value.arguments[0]]
+        )
+      )]);
+
+    path.value.arguments[1].body.body.unshift(cxt);
+
   });
 
   // assert.equal(find('.foo').value, 'bar') -> assert.dom('.foo').hasValue('bar')
